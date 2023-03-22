@@ -1,3 +1,5 @@
+# 230230322 - Script is no longer needed. The downloaded file is just a plain text file now.
+
 # Run this script to clean up the IIF file created by the Google Script.
 
 # The file downloaded from Google Drive has the first three characters as \357\273\277, denoting something about it
