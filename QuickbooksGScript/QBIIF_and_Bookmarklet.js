@@ -27,7 +27,13 @@ function createIif() {
   // clicking.
   var debug = Browser.msgBox('Greetings', 'For Debug, press YES. To run the script for real, press NO.', Browser.Buttons.YES_NO);
   //var debug = "yes";
-  var newDoc = DocumentApp.create("_QB_IIF_Export_" + Utilities.formatDate(new Date(), "GMT-05:00", "MMddYYYY"));
+    //var newDoc = DocumentApp.create("_QB_IIF_Export_" + Utilities.formatDate(new Date(), "GMT-05:00", "MMddYYYY"));
+  //
+  // 20230322 - Frank. Changed the above to the below so that I can download it as an actual text file, and I think
+  // I won't then have to do the replacement of the XXX's. 
+  // 20210701 - I stopped star'ing the file because I don't need to any more.
+  var newDoc = DriveApp.createFile("_QB_IIF_Export_" + Utilities.formatDate(new Date(), "GMT-05:00", "MMddYYYY") + ".IIF","","text/plain");
+  
   DriveApp.getFileById(newDoc.getId()).setStarred(true);
   var body = newDoc.getBody();
   
@@ -40,9 +46,11 @@ function createIif() {
   // This is how to set the body text. I don't BELIEVE it'll be that hard. I may be wrong, but we'll do it.
   //body.setText(text);
   
-  var re = /(dave|^frank$|^exactly$|^Consultant$|^\s+$)/;
+  var re = /(person9|^person8$|^co8$|^Consultant$|^\s+$)/;
   
-  var bodyText = "!TRNSXXXXXXTRNSIDXXXXXXTRNSTYPEXXXXXXDATEXXXXXXACCNTXXXXXXNAMEXXXXXXAMOUNTXXXXXXDOCNUMXXXXXXMEMO\n!SPLXXXXXXSPLIDXXXXXXTRNSTYPEXXXXXXDATEXXXXXXACCNTXXXXXXAMOUNTXXXXXXMEMO\n!ENDTRNS\n";
+  //var bodyText = "!TRNSXXXXXXTRNSIDXXXXXXTRNSTYPEXXXXXXDATEXXXXXXACCNTXXXXXXNAMEXXXXXXAMOUNTXXXXXXDOCNUMXXXXXXMEMO\n!SPLXXXXXXSPLIDXXXXXXTRNSTYPEXXXXXXDATEXXXXXXACCNTXXXXXXAMOUNTXXXXXXMEMO\n!ENDTRNS\n";
+  var bodyText = "!TRNS	TRNSID	TRNSTYPE	DATE	ACCNT	NAME	AMOUNT	DOCNUM	MEMO\n!SPL	SPLID	TRNSTYPE	DATE	ACCNT	AMOUNT	MEMO\n!ENDTRNS\n";
+
   
   var sheet = SpreadsheetApp.getActiveSheet();
   var rows = sheet.getDataRange();
@@ -60,13 +68,13 @@ function createIif() {
     
     
     // If amount to be paid is $0 or it's Dave, move on to the next line in the spreadsheet, but still create the bookmarklet
-    // entry, UNLESS it's a check to Dave. So we need to do another test.
+    // entry, UNLESS it's a check to person9. So we need to do another test.
     if (((line[0] == "") || line[11] <= 0) || line[1].equals("")) {
       continue;
     }
     if (re.test(line[1])) {
-      var davecheckre = /check/;
-      if (davecheckre.test(line[2])) {
+      var dcheckre = /check/;
+      if (dcheckre.test(line[2])) {
         // if the description contains the word "check", it *should* mean that we're sending an actual check (normally to Dave), so 
         // don't include it in the bookmarklet, since it won't be in the ACH.
         continue;
@@ -84,21 +92,18 @@ function createIif() {
     }
     //line[0].setFullYear(line[0].getFullYear()-1);
     
-    // Use the following when paying from Huntington account 
-    //iifLines[iifLineIndex++] = 'TRNSXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXHuntington CheckingXXXXXX' + line[2] + 'XXXXXX-' + line[11] + 'XXXXXXACHXXXXXX' + line[1];
-    
     
     // Use this one when paying from First Citizens
-    iifLines[iifLineIndex++] = 'TRNSXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXFirst CitizensXXXXXX' + line[2] + 'XXXXXX-' + line[11] + 'XXXXXXACHXXXXXX' + line[1];
+    iifLines[iifLineIndex++] = 'TRNS\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tFirst Citizens\t' + line[2] + '\t-' + line[10] + '\tACH\t' + line[1];
     
     // create to:, subject and body of email
     var emailTo = new String(line[1]).replace(/ /g,".") + "@mydomain.com";
-    // to fix IV's personal entry that we only make once per year.
+    // to fix person two's personal entry that we only make once per year.
     var mailSubject = "Check for " + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy");
     var mailBody = Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + " check will be for $" + line[11] + "\n\nThe line items are:\n\n";
     
     if (line[3] > 0) {
-      iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXOutside ServicesXXXXXX' + line[3] + 'XXXXXX' + line[1] + ' salary/minimums';
+      iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tOutside Services\t' + line[3] + '\t' + line[1] + ' salary/minimums';
       iifLines[0] = iifLines[0] + ' minimums';
       mailBody = mailBody + "Minimums = $" + line[3] + "\n";
       
@@ -110,7 +115,7 @@ function createIif() {
    
     if ((line[4] != "") && (line[4] != " ")) {
       // hourly
-      iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXOutside ServicesXXXXXX' + line[4] + 'XXXXXX' + line[1] + ' hourly';
+      iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tOutside Services\t' + line[4] + '\t' + line[1] + ' hourly';
       iifLines[0] = iifLines[0] + ' +hourly';
       mailBody = mailBody + "Hourly pay = $" + line[4] + "\n\n        Hourly Line Items:\n\n";
       
@@ -133,7 +138,7 @@ function createIif() {
     }
     if ((line[5] != "") && (line[5] != " ")) {
       // q1 bonus
-      iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXOutside ServicesXXXXXX' + line[5] + 'XXXXXX' + line[1] + ' +q1 bonus pmt';
+      iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tOutside Services\t' + line[5] + '\t' + line[1] + ' +q1 bonus pmt';
       iifLines[0] = iifLines[0] + ' +q1 bonus pmt';
       mailBody = mailBody + "q1 bonus payment = $" + line[5] + "\n";
     } else {
@@ -141,7 +146,7 @@ function createIif() {
     }
     if ((line[6] != "") && (line[6] != " ")) {
       // q2 bonus
-      iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXOutside ServicesXXXXXX' + line[6] + 'XXXXXX' + line[1] + ' +q2 bonus pmt';
+      iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tOutside Services\t' + line[6] + '\t' + line[1] + ' +q2 bonus pmt';
       iifLines[0] = iifLines[0] + ' +q2 bonus pmt';
       mailBody = mailBody + "q2 bonus payment = $" + line[6] + "\n";
     } else {
@@ -149,7 +154,7 @@ function createIif() {
     }
     if ((line[7] != "") && (line[7] != " ")) {
       // q3 bonus
-      iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXOutside ServicesXXXXXX' + line[7] + 'XXXXXX' + line[1] + ' +q3 bonus pmt';
+      iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tOutside Services\t' + line[7] + '\t' + line[1] + ' +q3 bonus pmt';
       iifLines[0] = iifLines[0] + ' +q3 bonus pmt';
       mailBody = mailBody + "q3 bonus payment = $" + line[7] + "\n";
     } else {
@@ -157,7 +162,7 @@ function createIif() {
     }
     if ((line[8] != "") && (line[8] != " ")) {
       // q4 bonus
-      iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXOutside ServicesXXXXXX' + line[8] + 'XXXXXX' + line[1] + ' +q4 bonus pmt';
+      iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tOutside Services\t' + line[8] + '\t' + line[1] + ' +q4 bonus pmt';
       iifLines[0] = iifLines[0] + ' +q4 bonus pmt';
       mailBody = mailBody + "q4 bonus payment = $" + line[8] + "\n";
     } else {
@@ -176,14 +181,14 @@ function createIif() {
           // We've found one of the expense line items for this person (line[1] has his/her name)
           //Commented out on 1/27
           //expLine[3] = -1 * expLine[3];
-          iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXTravel ReimbursementsXXXXXX' + expLine[3] + 'XXXXXX' + line[1] + ' ' + expLine[2];
+          iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tTravel Reimbursements\t' + expLine[3] + '\t' + line[1] + ' ' + expLine[2];
           lineItems = true;
           
           mailBody = mailBody + "        " + expLine[2] + ":   $" + expLine[3] + "\n";
         }
       }
       if (!lineItems) {
-        iifLines[iifLineIndex++] = 'SPLXXXXXX' + i++ + 'XXXXXXCHECKXXXXXX' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + 'XXXXXXTravel ReimbursementsXXXXXX' + line[9] + 'XXXXXX' + line[1] + ' expenses';
+        iifLines[iifLineIndex++] = 'SPL\t' + i++ + '\tCHECK\t' + Utilities.formatDate(line[0], "GMT", "MM/dd/yyyy") + '\tTravel Reimbursements\t' + line[9] + '\t' + line[1] + ' expenses';
       }
       
       iifLines[0] = iifLines[0] + ' +expenses';
