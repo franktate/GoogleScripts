@@ -3,3 +3,5 @@ Here's a link to a public scrubbed version of the spreadsheet, with the code att
 https://docs.google.com/spreadsheets/d/18OCe51a2mt8HC-1nWHE9toT3EUcXSYXZOoB3XEc2XUI/edit#gid=0
 
 Anyone can see the spreadsheet, but you can only copy it or view the script if you're logged into a Google account.
+
+Updated the script in the form to create a plain text file, so the cleanup script is no longer needed.
